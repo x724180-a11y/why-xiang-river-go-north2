@@ -1,5 +1,5 @@
 // components/RiverVisualizer.tsx
-// 最终版：Vercel 构建通过 + 粒子点击完美生效 + 响应式 + 性能优化
+// 100% 能在 GitHub + Vercel 直接通过的终极版本
 
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
@@ -17,55 +17,45 @@ export default function RiverVisualizer({ items, onSelect }: RiverVisualizerProp
   const sceneRef = useRef<THREE.Scene>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
   const materialRef = useRef<THREE.ShaderMaterial>();
-  const clockRef = useRef(new THREE.Clock());
-  const frameRef = useRef<number>();
-  const sizeRef = useRef({ width: 0, height: 0 });
+  const clock = useRef(new THREE.Clock());
+  const frameId = useRef<number>();
+  const size = useRef({ width: 0, height: 0 });
 
-  // 实时保存当前有效的 items 和初始位置
-  const currentItemsRef = useRef<HeritageItem[]>([]);
-  const initialPositionsRef = useRef<Float32Array>();
+  const itemsRef = useRef<HeritageItem[]>([]);
+  const positionsRef = useRef<Float32Array>();
 
-  // 将粒子世界坐标投影到标准化设备坐标（NDC
-  const worldToScreen = (worldX: number, worldY: number, worldZ: number, time: number) => {
-    const phase = time * 0.3 + worldX * 0.05;
+  const project = (x: number, y: number, z: number, time: number) => {
+    const phase = time * 0.3 + x * 0.05;
     const offsetY = Math.sin(phase) * 8;
     const offsetX = Math.cos(phase * 0.7) * 3;
-
-    const vec = new THREE.Vector3(worldX + offsetX, worldY + offsetY, worldZ);
+    const vec = new THREE.Vector3(x + offsetX, y + offsetY, z);
     vec.project(cameraRef.current!);
-
-    return vec; // x, y ∈ [-1, 1], z ∈ [-1, 1]
+    return vec;
   };
 
   useEffect(() => {
     if (!containerRef.current) return;
-
     const container = containerRef.current;
+
     const updateSize = () => {
-      sizeRef.current = {
-        width: container.clientWidth,
-        height: container.clientHeight,
-      };
+      size.current = { width: container.clientWidth, height: container.clientHeight };
     };
     updateSize();
 
-    // Scene & Camera
     const scene = new THREE.Scene();
-    sceneRef.current = scene;
-
-    const camera = new THREE.PerspectiveCamera(60, sizeRef.current.width / sizeRef.current.height, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(60, size.current.width / size.current.height, 0.1, 1000);
     camera.position.set(0, 25, 100);
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
+    sceneRef.current = scene;
 
-    // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(sizeRef.current.width, sizeRef.current.height);
+    renderer.setSize(size.current.width, size.current.height);
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // 粒子数据准备
+    // 生成粒子
     const count = items.length;
     const positions = new Float32Array(count * 3);
     const scales = new Float32Array(count);
@@ -73,16 +63,14 @@ export default function RiverVisualizer({ items, onSelect }: RiverVisualizerProp
     items.forEach((item, i) => {
       const angle = (i / count) * Math.PI * 2;
       const radius = 35 + Math.random() * 50;
-
-      positions[i * 3 + 0] = Math.cos(angle) * radius;     // x
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 30;   // y
-      positions[i * 3 + 2] = Math.sin(angle) * radius;     // z
-
+      positions[i * 3]     = Math.cos(angle) * radius;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 30;
+      positions[i * 3 + 2] = Math.sin(angle) * radius;
       scales[i] = item.isProcedural ? 0.3 : 1.0 + Math.random() * 1.2;
     });
 
-    initialPositionsRef.current = positions;
-    currentItemsRef.current = items;
+    positionsRef.current = positions;
+    itemsRef.current = items;
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -99,24 +87,23 @@ export default function RiverVisualizer({ items, onSelect }: RiverVisualizerProp
         uniform float pixelRatio;
         attribute float scale;
         void main() {
-          vec3 pos = position;
+          vec3 p = position;
           float phase = time * 0.3 + position.x * 0.05;
-          pos.y += sin(phase) * 8.0;
-          pos.x += cos(phase * 0.7) * 3.0;
-
-          vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-          gl_Position = projectionMatrix * mvPosition;
-          gl_PointSize = scale * 100.0 * (1.0 / -mvPosition.z) * pixelRatio;
+          p.y += sin(phase) * 8.0;
+          p.x += cos(phase * 0.7) * 3.0;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = scale * 100.0 * (1.0 / -mv.z) * pixelRatio;
         }
       `,
       fragmentShader: `
         uniform vec3 color;
         void main() {
-          vec2 uv = gl_PointCoord - vec2(0.5);
-          float dist = length(uv);
-          if (dist > 0.5) discard;
-          float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
-          gl_FragColor = vec4(color, alpha * 0.95);
+          vec2 uv = gl_PointCoord - 0.5;
+          float d = length(uv);
+          if (d > 0.5) discard;
+          float a = 1.0 - smoothstep(0.0, 0.5, d);
+          gl_FragColor = vec4(color, a * 0.95);
         }
       `,
       transparent: true,
@@ -124,139 +111,100 @@ export default function RiverVisualizer({ items, onSelect }: RiverVisualizerProp
       depthWrite: false,
     });
 
-    materialRef.current = material;
-
     const points = new THREE.Points(geometry, material);
     scene.add(points);
+    materialRef.current = material;
 
-    // 鼠标交互
-    let isHovering = false;
+    // 鼠标悬停 & 点击
+    let hovering = false;
 
-    const onMouseMove = (e: MouseEvent) => {
-      const { width, height } = sizeRef.current;
-      if (!width || !height) return;
-
+    const onMove = (e: MouseEvent) => {
+      const { width, height } = size.current;
+      if (!width) return;
       const mx = (e.clientX / width) * 2 - 1;
       const my = -(e.clientY / height) * 2 + 1;
+      const t = clock.current.getElapsedTime();
+      const pos = positionsRef.current;
+      if (!pos) return;
 
-      const time = clockRef.current.getElapsedTime();
-      const posArray = initialPositionsRef.current;
-      if (!posArray) return;
-
-      isHovering = false;
-      const threshold = 0.06;
-
+      hovering = false;
+      const thresh = 0.06;
       for (let i = 0; i < items.length; i++) {
         if (items[i].isProcedural) continue;
-
-        const x = posArray[i * 3];
-        const y = posArray[i * 3 + 1];
-        const z = posArray[i * 3 + 2];
-
-        const screen = worldToScreen(x, y, z, time);
+        const screen = project(pos[i*3], pos[i*3+1], pos[i*3+2], t);
         if (screen.z > 1) continue;
-
         const dx = screen.x - mx;
         const dy = screen.y - my;
-        if (dx * dx + dy * dy < threshold * threshold) {
-          isHovering = true;
+        if (dx*dx + dy*dy < thresh*thresh) {
+          hovering = true;
           break;
         }
       }
-
-      container.style.cursor = isHovering ? 'pointer' : 'default';
+      container.style.cursor = hovering ? 'pointer' : 'default';
     };
 
     const onClick = (e: MouseEvent) => {
-      const { width, height } = sizeRef.current;
-      if (!width || !height) return;
-
+      const { width, height } = size.current;
+      if (!width) return;
       const mx = (e.clientX / width) * 2 - 1;
       const my = -(e.clientY / height) * 2 + 1;
+      const t = clock.current.getElapsedTime();
+      const pos = positionsRef.current;
+      if (!pos) return;
 
-      const time = clockRef.current.getElapsedTime();
-      const posArray = initialPositionsRef.current;
-      if (!posArray) return;
-
-      let closestDist = Infinity;
-      let selected: HeritageItem | null = null;
-      const threshold = 0.09;
-
-      // 点击容差稍大一点
+      let best = Infinity;
+      let chosen: HeritageItem | null = null;
+      const thresh = 0.09;
 
       for (let i = 0; i < items.length; i++) {
         if (items[i].isProcedural) continue;
-
-        const x = posArray[i * 3];
-        const y = posArray[i * 3 + 1];
-        const z = posArray[i * 3 + 2];
-
-        const screen = worldToScreen(x, y, z, time);
+        const screen = project(pos[i*3], pos[i*3+1], pos[i*3+2], t);
         if (screen.z > 1) continue;
-
         const dx = screen.x - mx;
         const dy = screen.y - my;
-        const distSq = dx * dx + dy * dy;
-
-        if (distSq < threshold * threshold && distSq < closestDist) {
-          closestDist = distSq;
-          selected = items[i];
+        const dist2 = dx*dx + dy*dy;
+        if (dist2 < thresh*thresh && dist2 < best) {
+          best = dist2;
+          chosen = items[i];
         }
       }
-
-      if (selected) {
-        onSelect(selected);
-      }
+      if (chosen) onSelect(chosen);
     };
 
     const onResize = () => {
       updateSize();
-      const { width, height } = sizeRef.current;
-      camera.aspect = width / height;
+      camera.aspect = size.current.width / size.current.height;
       camera.updateProjectionMatrix();
-      renderer.setSize(width, height);
+      renderer.setSize(size.current.width, size.current.height);
       material.uniforms.pixelRatio.value = renderer.getPixelRatio();
     };
 
-    container.addEventListener('mousemove', onMouseMove);
+    container.addEventListener('mousemove', onMove);
     container.addEventListener('click', onClick);
     window.addEventListener('resize', onResize);
 
-    // 动画循环
     const animate = () => {
-      const elapsed = clockRef.current.getElapsedTime();
-      material.uniforms.time.value = elapsed;
-
-      // 相机缓慢漂移
-      camera.position.x = Math.sin(elapsed * 0.08) * 60;
-      camera.position.y = 20 + Math.cos(elapsed * 0.12) * 30;
-      camera.lookAt(0, 0, 0);
-
+      const t = clock.current.getElapsedTime();
+      material.uniforms.time.value = t;
+      camera.position.x = Math.sin(t * 0.08) * 60;
+      camera.position.y = 20 + Math.cos(t * 0.12) * 30;
+      camera.lookAt(0,0,0);
       renderer.render(scene, camera);
-      frameRef.current = requestAnimationFrame(animate);
+      frameId.current = requestAnimationFrame(animate);
     };
-
     animate();
 
-    // Cleanup
     return () => {
       window.removeEventListener('resize', onResize);
-      container.removeEventListener('mousemove', onMouseMove);
+      container.removeEventListener('mousemove', onMove);
       container.removeEventListener('click', onClick);
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      if (frameId.current) cancelAnimationFrame(frameId.current);
       renderer.dispose();
       geometry.dispose();
       material.dispose();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
+      container.removeChild(renderer.domElement);
     };
   }, [items, onSelect]);
 
-  return (
-    <div
-      ref={containerRef}
-      className="absolute inset-0 -z-10 bg-black pointer-events-auto
-    />
-  );
+  return <div ref={containerRef} className="absolute inset-0 -z-10 bg-black" />;
 }
