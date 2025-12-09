@@ -1,4 +1,3 @@
-// services/constants.ts —— 完整版（10个真实遗产 + 程序填充 + 完美中英文）
 import { HeritageItem } from '../types';
 
 // 唯一正确的 UI_TEXT（中英文永不闪退！）
