@@ -23,12 +23,15 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
     // Hash the entire ID for better variety, especially for procedural items (proc-0, proc-1...)
     const idx = item.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % poems.length;
     const p = poems[idx];
-    return (
-  <div
-    className="fixed inset-0 z-50 bg-black/95 text-[#F5F0E6] overflow-y-auto sanctuary-scroll animate-fade-in-up pointer-events-auto"
-    onScroll={handleScroll}
-    onClick={(e) => e.stopPropagation()}
-  >  // AI Studio State
+    return {
+        line: p.line,
+        trans: p.translation,
+        author: p.author,
+        year: p.year
+    };
+  }, [item]);
+  
+  // AI Studio State
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
@@ -41,9 +44,9 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
   // Leaflet Map Initialization
   useEffect(() => {
     if (!mapContainerRef.current || !window.L) return;
+    if (mapRef.current) return; // Prevent double initialization
 
     const L = window.L;
-    let mapInstance: any = null;
     let flyTimer: NodeJS.Timeout;
 
     // Init map
@@ -55,7 +58,6 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
         scrollWheelZoom: false,
         dragging: true
     });
-    mapInstance = map;
     mapRef.current = map;
 
     // CartoDB Positron (Light) - We will invert this with CSS to get Black/Gold
@@ -97,15 +99,16 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
 
     // Slow fly to
     flyTimer = setTimeout(() => {
-         if (mapRef.current && mapRef.current === mapInstance) {
-             mapInstance.flyTo([item.coordinates.lat, item.coordinates.lng], 6, { duration: 3 });
+         if (mapRef.current) {
+             mapRef.current.flyTo([item.coordinates.lat, item.coordinates.lng], 6, { duration: 3 });
          }
     }, 500);
 
     return () => {
         clearTimeout(flyTimer);
-        if (mapInstance) {
-            mapInstance.remove();
+        if (mapRef.current) {
+            mapRef.current.off(); // Remove listeners first
+            mapRef.current.remove();
             mapRef.current = null;
         }
     };
