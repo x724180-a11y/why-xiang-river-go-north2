@@ -1,5 +1,7 @@
+import { UI_TEXT } from './uiText'; 
 
-import { HeritageItem, PoetryDatabase } from './types';
+export { UI_TEXT }; 
+
 
 // Curated Top-Tier Sites
 export const FEATURED_HERITAGE_ITEMS: HeritageItem[] = [
