@@ -4,7 +4,7 @@ import { HERITAGE_ITEMS, UI_TEXT } from './constants';
 import { HeritageItem, Language } from './types';
 import RiverVisualizer from './components/RiverVisualizer';
 import HeritageCard from './components/HeritageCard';
-import TearsArchive from './pages/TearsArchive';   // ← 新增：档案馆页面
+import TearsArchive from './pages/TearsArchive'; // ← 新增：档案馆页面
 
 const App: React.FC = () => {
   const [language, setLanguage] = useState<Language>('en');
@@ -226,7 +226,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* 全球泪水档案馆弹窗 */}
+        {/* ← 第三步：全球泪水档案馆弹窗 */}
         {showTearsArchive && (
           <TearsArchive onClose={() => setShowTearsArchive(false)} />
         )}
