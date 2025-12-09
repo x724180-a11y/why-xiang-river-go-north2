@@ -6,64 +6,61 @@ interface RiverVisualizerProps {
   items: HeritageItem[];
   onSelect: (item: HeritageItem) => void;
   filteredRegion: string;
-  isDetailOpen?: boolean; // ← 新增：详情页打开时禁用点击
 }
 
-const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ 
-  items, 
-  onSelect, 
-  filteredRegion,
-  isDetailOpen = false // ← 新增默认值
-}) => {
+const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filteredRegion }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Permanent Three.js Objects (Init once)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-
-  // Picking Refs
   const pickingSceneRef = useRef<THREE.Scene | null>(null);
   const pickingTargetRef = useRef<THREE.WebGLRenderTarget | null>(null);
-  const pickingMeshRef = useRef<THREE.Points | null>(null);
-  const visualMeshRef = useRef<THREE.Points | null>(null);
-  const activeItemsRef = useRef<HeritageItem[]>([]);
-  const animationFrameRef = useRef<number>(0);
   const clockRef = useRef<THREE.Clock>(new THREE.Clock());
+  const animationFrameRef = useRef<number>(0);
+  
+  // Dynamic Objects (Recreated on data change)
+  const visualMeshRef = useRef<THREE.Points | null>(null);
+  const pickingMeshRef = useRef<THREE.Points | null>(null);
+  
+  // Data Refs for Event Handlers
+  const activeItemsRef = useRef<HeritageItem[]>([]);
 
-  // Filter items logic
+  // 1. Filter Logic
   const activeItems = useMemo(() => {
     if (!filteredRegion) return items;
     const lower = filteredRegion.toLowerCase();
-    return items.filter(i =>
+    return items.filter(i => 
       !i.isProcedural && (
-        i.country.toLowerCase().includes(lower) ||
+        i.country.toLowerCase().includes(lower) || 
         i.nameEn.toLowerCase().includes(lower)
       )
     );
   }, [items, filteredRegion]);
 
+  // Keep ref synced for click handler
   useEffect(() => {
     activeItemsRef.current = activeItems;
   }, [activeItems]);
 
+  // 2. Initialization Effect (Runs ONCE)
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // --- SETUP ---
     const width = window.innerWidth;
     const height = window.innerHeight;
 
-    // Main Scene
+    // -- Scene Setup --
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
     scene.fog = new THREE.FogExp2(0x000000, 0.002);
     sceneRef.current = scene;
 
-    // Picking Scene
     const pickingScene = new THREE.Scene();
-    pickingScene.background = new THREE.Color(0); // 0 = background (no hit)
+    pickingScene.background = new THREE.Color(0);
     pickingSceneRef.current = pickingScene;
 
-    // Picking Target (1x1 pixel)
     const pickingTarget = new THREE.WebGLRenderTarget(1, 1, {
       minFilter: THREE.LinearFilter,
       magFilter: THREE.NearestFilter,
@@ -72,25 +69,141 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({
     });
     pickingTargetRef.current = pickingTarget;
 
-    // Camera
     const camera = new THREE.PerspectiveCamera(60, width / height, 1, 3000);
     camera.position.z = 800;
-    camera.position.y = 0;
     cameraRef.current = camera;
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true, 
       alpha: false,
-      powerPreference: "high-performance"
+      powerPreference: "high-performance" 
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
+    // Clear container and append
+    while (containerRef.current.firstChild) {
+      containerRef.current.removeChild(containerRef.current.firstChild);
+    }
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // --- GEOMETRY & ATTRIBUTES ---
+    // -- Event Handlers --
+    const handleClick = (event: MouseEvent) => {
+        if (!rendererRef.current || !pickingTargetRef.current || !pickingSceneRef.current || !cameraRef.current) return;
+        if (!containerRef.current) return;
+
+        const rect = containerRef.current.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+        
+        // Virtual Camera Window
+        cameraRef.current.setViewOffset(rect.width, rect.height, mouseX, mouseY, 1, 1);
+        
+        rendererRef.current.setRenderTarget(pickingTargetRef.current);
+        rendererRef.current.render(pickingSceneRef.current, cameraRef.current);
+        
+        const pixelBuffer = new Uint8Array(4);
+        rendererRef.current.readRenderTargetPixels(pickingTargetRef.current, 0, 0, 1, 1, pixelBuffer);
+        
+        rendererRef.current.setRenderTarget(null);
+        cameraRef.current.clearViewOffset();
+
+        const id = (pixelBuffer[0] << 16) | (pixelBuffer[1] << 8) | pixelBuffer[2];
+
+        if (id > 0) {
+            const index = id - 1;
+            if (activeItemsRef.current[index]) {
+                onSelect(activeItemsRef.current[index]);
+                return;
+            }
+        } 
+        
+        // Spec: Random select on void click
+        if (activeItemsRef.current.length > 0) {
+            const randomIndex = Math.floor(Math.random() * activeItemsRef.current.length);
+            onSelect(activeItemsRef.current[randomIndex]);
+        }
+    };
+
+    const handleResize = () => {
+        if (!cameraRef.current || !rendererRef.current) return;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        cameraRef.current.aspect = w / h;
+        cameraRef.current.updateProjectionMatrix();
+        rendererRef.current.setSize(w, h);
+        
+        // Update uniforms in materials if they exist
+        if (visualMeshRef.current) {
+            (visualMeshRef.current.material as THREE.ShaderMaterial).uniforms.pixelRatio.value = rendererRef.current.getPixelRatio();
+        }
+    };
+
+    containerRef.current.addEventListener('click', handleClick);
+    window.addEventListener('resize', handleResize);
+
+    // -- Animation Loop --
+    const animate = () => {
+        if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
+        
+        const time = clockRef.current.getElapsedTime();
+        
+        // Update uniforms
+        if (visualMeshRef.current) {
+             const mat = visualMeshRef.current.material as THREE.ShaderMaterial;
+             mat.uniforms.time.value = time;
+        }
+        if (pickingMeshRef.current) {
+             const mat = pickingMeshRef.current.material as THREE.ShaderMaterial;
+             mat.uniforms.time.value = time;
+        }
+
+        // Camera drift
+        cameraRef.current.position.x = Math.sin(time * 0.1) * 50;
+        cameraRef.current.position.y = Math.cos(time * 0.15) * 30;
+        cameraRef.current.lookAt(0,0,0);
+
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+        animationFrameRef.current = requestAnimationFrame(animate);
+    };
+    animate();
+
+    // -- Cleanup --
+    return () => {
+        if (containerRef.current) {
+            containerRef.current.removeEventListener('click', handleClick);
+        }
+        window.removeEventListener('resize', handleResize);
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        
+        if (rendererRef.current) {
+            rendererRef.current.dispose();
+            rendererRef.current.domElement.remove();
+        }
+        if (pickingTargetRef.current) pickingTargetRef.current.dispose();
+    };
+  }, []); // Dependency array empty: Runs once on mount
+
+  // 3. Geometry Update Effect (Runs on data change)
+  useEffect(() => {
+    if (!sceneRef.current || !pickingSceneRef.current || !rendererRef.current) return;
+
+    // Cleanup old meshes
+    if (visualMeshRef.current) {
+        sceneRef.current.remove(visualMeshRef.current);
+        visualMeshRef.current.geometry.dispose();
+        (visualMeshRef.current.material as THREE.Material).dispose();
+    }
+    if (pickingMeshRef.current) {
+        pickingSceneRef.current.remove(pickingMeshRef.current);
+        pickingMeshRef.current.geometry.dispose();
+        (pickingMeshRef.current.material as THREE.Material).dispose();
+    }
+
     const count = activeItems.length;
+    if (count === 0) return;
+
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
@@ -98,20 +211,20 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({
     const phases = new Float32Array(count);
     const pickingColors = new Float32Array(count * 3);
 
-    // Color Palette: Gold to Amber
     const colorPalette = [
-        new THREE.Color('#D4AF37'),
-        new THREE.Color('#C5A028'),
-        new THREE.Color('#FFD700'),
-        new THREE.Color('#E6BE8A'),
-        new THREE.Color('#B8860B'),
+        new THREE.Color('#D4AF37'), 
+        new THREE.Color('#C5A028'), 
+        new THREE.Color('#FFD700'), 
+        new THREE.Color('#E6BE8A'), 
+        new THREE.Color('#B8860B'), 
     ];
 
     for (let i = 0; i < count; i++) {
       const rangeX = 8000;
       const x = (Math.random() - 0.5) * rangeX;
-      const y = (Math.random() - 0.5) * 600;
+      const y = (Math.random() - 0.5) * 600; 
       const z = (Math.random() - 0.5) * 400;
+
       positions[i * 3] = x;
       positions[i * 3 + 1] = y;
       positions[i * 3 + 2] = z;
@@ -126,7 +239,7 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({
 
       phases[i] = Math.random() * Math.PI * 2;
 
-      // Unique Picking Color (ID encoded in RGB)
+      // ID = index + 1
       const id = i + 1;
       pickingColors[i * 3] = ((id >> 16) & 255) / 255;
       pickingColors[i * 3 + 1] = ((id >> 8) & 255) / 255;
@@ -139,22 +252,21 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({
     geometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
     geometry.setAttribute('pickingColor', new THREE.BufferAttribute(pickingColors, 3));
 
-    // --- SHADER LOGIC (SHARED) ---
+    // Shader Definitions
     const shaderLogic = `
         uniform float time;
         uniform float pixelRatio;
         attribute float size;
         attribute float phase;
-       
-        // Simplex Noise (GLSL)
+        
         vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
         vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
         vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
         vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
         float snoise(vec3 v) {
-          const vec2 C = vec2(1.0/6.0, 1.0/3.0) ;
-          const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-          vec3 i = floor(v + dot(v, C.yyy) );
+          const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+          const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+          vec3 i  = floor(v + dot(v, C.yyy) );
           vec3 x0 = v - i + dot(i, C.xxx) ;
           vec3 g = step(x0.yzx, x0.xyz);
           vec3 l = 1.0 - g;
@@ -169,7 +281,7 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({
                    + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
                    + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
           float n_ = 0.142857142857;
-          vec3 ns = n_ * D.wyz - D.xzx;
+          vec3  ns = n_ * D.wyz - D.xzx;
           vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
           vec4 x_ = floor(j * ns.z);
           vec4 y_ = floor(j - 7.0 * x_ );
@@ -187,7 +299,7 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({
           vec3 p1 = vec3(a0.zw,h.y);
           vec3 p2 = vec3(a1.xy,h.z);
           vec3 p3 = vec3(a1.zw,h.w);
-          vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+          vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
           p0 *= norm.x;
           p1 *= norm.y;
           p2 *= norm.z;
@@ -202,24 +314,24 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({
     const mainVertexLogic = `
           float flowSpeed = 20.0;
           float newX = mod(position.x + time * flowSpeed + 4000.0, 8000.0) - 4000.0;
-         
+          
           float noiseFreq = 0.0015;
           float noiseAmp = 80.0;
           float yOffset = snoise(vec3(newX * noiseFreq, position.z * noiseFreq, time * 0.2)) * noiseAmp;
           float zOffset = snoise(vec3(newX * noiseFreq + 100.0, position.y * noiseFreq, time * 0.15)) * noiseAmp;
+
           vec3 pos = vec3(newX, position.y + yOffset, position.z + zOffset);
-         
+          
           vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
           gl_Position = projectionMatrix * mvPosition;
-         
+          
           gl_PointSize = size * pixelRatio * (600.0 / -mvPosition.z);
     `;
 
-    // 1. VISUAL MATERIAL
     const material = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
-        pixelRatio: { value: renderer.getPixelRatio() }
+        pixelRatio: { value: rendererRef.current.getPixelRatio() }
       },
       vertexShader: `
         ${shaderLogic}
@@ -229,7 +341,6 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({
         void main() {
           vColor = color;
           ${mainVertexLogic}
-         
           float distEdge = min(smoothstep(-4000.0, -3000.0, newX), smoothstep(4000.0, 3000.0, newX));
           vAlpha = distEdge * (0.6 + 0.4 * sin(time * 2.0 + phase));
         }
@@ -241,10 +352,8 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({
           vec2 coord = gl_PointCoord - vec2(0.5);
           float r = length(coord);
           if (r > 0.5) discard;
-         
           float glow = 1.0 - (r * 2.0);
           glow = pow(glow, 1.5);
-         
           gl_FragColor = vec4(vColor * 1.5, vAlpha * glow);
         }
       `,
@@ -253,17 +362,15 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({
       blending: THREE.AdditiveBlending
     });
 
-    // 2. PICKING MATERIAL
     const pickingMaterial = new THREE.ShaderMaterial({
         uniforms: {
             time: { value: 0 },
-            pixelRatio: { value: renderer.getPixelRatio() }
+            pixelRatio: { value: rendererRef.current.getPixelRatio() }
         },
         vertexShader: `
             ${shaderLogic}
             attribute vec3 pickingColor;
             varying vec3 vPickingColor;
-           
             void main() {
                 vPickingColor = pickingColor;
                 ${mainVertexLogic}
@@ -272,7 +379,9 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({
         fragmentShader: `
             varying vec3 vPickingColor;
             void main() {
-                gl_FragColor = vec4(vPickingColor, 1.0); // ← 方形拾取区
+                vec2 coord = gl_PointCoord - vec2(0.5);
+                if (length(coord) > 0.5) discard; 
+                gl_FragColor = vec4(vPickingColor, 1.0);
             }
         `,
         transparent: false,
@@ -280,101 +389,16 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({
     });
 
     const particles = new THREE.Points(geometry, material);
-    scene.add(particles);
+    sceneRef.current.add(particles);
     visualMeshRef.current = particles;
 
     const pickingParticles = new THREE.Points(geometry, pickingMaterial);
-    pickingScene.add(pickingParticles);
+    pickingSceneRef.current.add(pickingParticles);
     pickingMeshRef.current = pickingParticles;
 
-    // --- EVENTS ---
-    const handleClick = (event: MouseEvent) => {
-      if (isDetailOpen) return; // ← 关键修复：详情页打开时完全禁用点击
+  }, [activeItems]);
 
-      if (!containerRef.current || !rendererRef.current || !pickingTargetRef.current) return;
-
-      const rect = containerRef.current.getBoundingClientRect();
-      const mouseX = event.clientX - rect.left;
-      const mouseY = event.clientY - rect.top;
-       
-      camera.setViewOffset(rect.width, rect.height, mouseX, mouseY, 1, 1);
-       
-      rendererRef.current.setRenderTarget(pickingTargetRef.current);
-      rendererRef.current.render(pickingScene, camera);
-       
-      rendererRef.current.setRenderTarget(null);
-      camera.clearViewOffset();
-
-      const pixelBuffer = new Uint8Array(4);
-      rendererRef.current.readRenderTargetPixels(pickingTargetRef.current, 0, 0, 1, 1, pixelBuffer);
-       
-      const id = (pixelBuffer[0] << 16) | (pixelBuffer[1] << 8) | pixelBuffer[2];
-      if (id > 0) {
-          const index = id - 1;
-          if (activeItemsRef.current[index]) {
-              onSelect(activeItemsRef.current[index]);
-              return;
-          }
-      }
-       
-      if (activeItemsRef.current.length > 0) {
-          const randomIndex = Math.floor(Math.random() * activeItemsRef.current.length);
-          onSelect(activeItemsRef.current[randomIndex]);
-      }
-    };
-
-    const handleResize = () => {
-       const w = window.innerWidth;
-       const h = window.innerHeight;
-       camera.aspect = w / h;
-       camera.updateProjectionMatrix();
-       renderer.setSize(w, h);
-       material.uniforms.pixelRatio.value = renderer.getPixelRatio();
-       pickingMaterial.uniforms.pixelRatio.value = renderer.getPixelRatio();
-    };
-
-    // 关键修复：监听 window，不要监听 container
-    window.addEventListener('click', handleClick);
-    window.addEventListener('resize', handleResize);
-
-    // --- LOOP ---
-    const animate = () => {
-      const time = clockRef.current.getElapsedTime();
-     
-      material.uniforms.time.value = time;
-      pickingMaterial.uniforms.time.value = time;
-     
-      camera.position.x = Math.sin(time * 0.1) * 50;
-      camera.position.y = Math.cos(time * 0.15) * 30;
-      camera.lookAt(0,0,0);
-      renderer.render(scene, camera);
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-   
-    animate();
-
-    // CLEANUP
-    return () => {
-      window.removeEventListener('click', handleClick);
-      window.removeEventListener('resize', handleResize);
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-     
-      if (rendererRef.current && containerRef.current) {
-         if (rendererRef.current.domElement.parentNode === containerRef.current) {
-             containerRef.current.removeChild(rendererRef.current.domElement);
-         }
-         rendererRef.current.dispose();
-      }
-     
-      pickingTarget.dispose();
-      geometry.dispose();
-      material.dispose();
-      pickingMaterial.dispose();
-    };
-  }, [activeItems, onSelect, isDetailOpen]); // ← 加上依赖
-
-  // 关键修复：去掉 pointer-events-none
-  return <div ref={containerRef} className="absolute inset-0 z-0 bg-black cursor-pointer pointer-events-auto" />;
+  return <div ref={containerRef} className="absolute inset-0 z-0 bg-black cursor-pointer" />;
 };
 
 export default RiverVisualizer;
