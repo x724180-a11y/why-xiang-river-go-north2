@@ -23,14 +23,12 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
     // Hash the entire ID for better variety, especially for procedural items (proc-0, proc-1...)
     const idx = item.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % poems.length;
     const p = poems[idx];
-    return {
-        line: p.line,
-        trans: p.translation,
-        author: p.author,
-        year: p.year
-    };
-  }, [item]);
-  
+    return (
+  <div
+    className="fixed inset-0 z-[9999] bg-black text-[#F5F0E6] overflow-y-auto sanctuary-scroll animate-fade-in-up pointer-events-auto"
+    onScroll={handleScroll}
+    onClick={(e) => e.stopPropagation()} // ← 加上这行，彻底隔离！
+  >  }, [item]);
   // AI Studio State
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
