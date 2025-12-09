@@ -345,7 +345,11 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
        pickingMaterial.uniforms.pixelRatio.value = renderer.getPixelRatio();
     };
 
-    window.addEventListener('click', handleClick);
+    // Use containerRef for clicks instead of window to avoid UI hijacking
+    const containerEl = containerRef.current;
+    if (containerEl) {
+        containerEl.addEventListener('click', handleClick);
+    }
     window.addEventListener('resize', handleResize);
 
     // --- LOOP ---
@@ -368,7 +372,9 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
 
     // CLEANUP
     return () => {
-      window.removeEventListener('click', handleClick);
+      if (containerEl) {
+        containerEl.removeEventListener('click', handleClick);
+      }
       window.removeEventListener('resize', handleResize);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       
