@@ -198,7 +198,7 @@ export const FEATURED_HERITAGE_ITEMS: HeritageItem[] = [
     descriptionEn: 'The quintessence of Chinese culture, combining music, vocal performance, mime, dance and acrobatics.',
     imageUrl: 'https://images.unsplash.com/photo-1594736797933-d0501ba2fe65?w=2000',
     era: '1790 – Present'
-  }，
+  },
   {
     id: 'eg-1',
     nameZh: '吉萨金字塔群',
