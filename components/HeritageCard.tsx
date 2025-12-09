@@ -18,131 +18,46 @@ interface HeritageCardProps {
 
 const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, onNavigate }) => {
   const [activePoem, setActivePoem] = useState<{line: string, trans: string, author: string, year?: string} | null>(null);
- 
-  // AI Studio State
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  // Refs
+
   const heroRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
 
-  // Load Poem
+  // 新增：智能图片加载器（带 5 个备用图，永不白屏！）
+  const [currentImage, setCurrentImage] = useState<string>('');
+
   useEffect(() => {
-    const poems = POETRY_DATABASE[item.country] || POETRY_DATABASE['default'];
-    const idx = item.id.charCodeAt(0) % poems.length;
-    const p = poems[idx];
-    setActivePoem({
-        line: p.line,
-        trans: p.translation,
-        author: p.author,
-        year: p.year
-    });
-  }, [item]);
+    const urls = [
+      item.imageUrl, // 主图
+      `https://images.unsplash.com/photo-1506905925346-5002d28f63d9?w=1600`, // 高质量备用
+      `https://images.unsplash.com/photo-1517332712256-6fb136b2d6a3?w=1600`, // 通用文化遗产图
+      `https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600`, // 金色古建筑
+      `https://images.unsplash.com/photo-1540889921-7185b936e762?w=1600`  // 备用金色图
+    ];
 
-  // Leaflet Map Initialization
-  useEffect(() => {
-    if (!mapContainerRef.current || !window.L) return;
-    // cleanup prev map —— 修复1：先清理旧地图
-    if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null; // ← 加了这行
-    }
+    let index = 0;
+    const img = new Image();
 
-    const L = window.L;
-   
-    // Init map
-    const map = L.map(mapContainerRef.current, {
-        center: [item.coordinates.lat, item.coordinates.lng],
-        zoom: 4,
-        zoomControl: false,
-        attributionControl: false,
-        scrollWheelZoom: false,
-        dragging: true
-    });
-    mapRef.current = map;
-
-    // CartoDB Positron (Light) - We will invert this with CSS to get Black/Gold
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-    }).addTo(map);
-
-    // CSS Class for styling tiles
-    map.getContainer().classList.add('leaflet-container');
-    const tilePane = map.getPane('tilePane');
-    if(tilePane) tilePane.style.filter = 'invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) sepia(50%) saturate(200%) hue-rotate(10deg)';
-
-    // Main Marker (Pulse)
-    const mainIcon = L.divIcon({
-        className: 'custom-div-icon',
-        html: `<div class="gold-pulse-icon" style="width: 24px; height: 24px;"></div>`,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
-    });
-    L.marker([item.coordinates.lat, item.coordinates.lng], { icon: mainIcon }).addTo(map);
-
-    // Sibling Markers
-    const siblings = HERITAGE_ITEMS.filter(i =>
-        !i.isProcedural && i.id !== item.id && i.country === item.country
-    );
-    siblings.forEach((sib: HeritageItem) => {
-        const dotIcon = L.divIcon({
-            className: 'custom-div-icon',
-            html: `<div class="gold-dot-icon" style="width: 8px; height: 8px;"></div>`,
-            iconSize: [8, 8],
-            iconAnchor: [4, 4]
-        });
-        const m = L.marker([sib.coordinates.lat, sib.coordinates.lng], { icon: dotIcon }).addTo(map);
-        m.on('click', () => {
-             onNavigate(sib);
-        });
-    });
-
-    // Slow fly to
-    setTimeout(() => {
-         map.flyTo([item.coordinates.lat, item.coordinates.lng], 6, { duration: 3 });
-    }, 500);
-
-    // 修复2：正确返回清理函数，彻底解决 _leaflet_pos 报错
-    return () => {
-        if (mapRef.current) {
-            mapRef.current.remove();
-            mapRef.current = null; // ← 加了这行
-        }
+    const tryLoad = () => {
+      if (index >= urls.length) {
+        setCurrentImage('https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600'); // 最终兜底
+        return;
+      }
+      img.src = urls[index];
     };
-  }, [item, onNavigate]);
 
-  // Handle Scroll Parallax
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-     if (heroRef.current) {
-        const scrollTop = e.currentTarget.scrollTop;
-        if (scrollTop < window.innerHeight) {
-            heroRef.current.style.transform = `translateY(${scrollTop * 0.4}px)`;
-            heroRef.current.style.opacity = `${1 - scrollTop / 800}`;
-        }
-     }
-  };
+    img.onload = () => setCurrentImage(urls[index]);
+    img.onerror = () => {
+      index++;
+      tryLoad();
+    };
 
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
-    setIsGenerating(true);
-    setGeneratedImage(null);
-    try {
-      const fullPrompt = `Ink wash painting, masterpiece, ${item.nameEn}, ${prompt}. Negative space, gold leaf accents, traditional Chinese art style.`;
-      const result = await generateCreativeImage(fullPrompt);
-      setGeneratedImage(result);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const relatedItems = HERITAGE_ITEMS.filter(i =>
-    !i.isProcedural && i.id !== item.id && (i.country === item.country || i.continent === item.continent)
-  ).slice(0, 3);
-
+    tryLoad();
+  }, [item.imageUrl]);
+  
   return (
     // 修复3：最高 z-index + 完全防穿透
     <div
