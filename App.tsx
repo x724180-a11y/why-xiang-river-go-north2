@@ -228,8 +228,7 @@ const App: React.FC = () => {
 
         {/* ← 第三步：全球泪水档案馆弹窗 */}
         {showTearsArchive && (
-          <TearsArchive onClose={() => setShowTearsArchive(false)} />
-        )}
+          <TearsArchive language={language} onClose={() => setShowTearsArchive(false)} />        )}
       </div>
     </>
   );
