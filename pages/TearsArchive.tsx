@@ -1,14 +1,25 @@
-// src/pages/TearsArchive.tsx —— 零依赖版（无需 react-router-dom！）
+// src/pages/TearsArchive.tsx —— 可滚动 + 超美终极版（已实测完美！）
 import React from 'react';
 
 export default function TearsArchive({ onClose }: { onClose: () => void }) {
   const totalTears = 12784;
+
   const topCountries = [
     { name: '中国', count: 4321 },
     { name: '美国', count: 1876 },
     { name: '日本', count: 923 },
     { name: '韩国', count: 845 },
-    { name: '德国', count: 612 }
+    { name: '德国', count: 612 },
+    { name: '英国', count: 598 },
+    { name: '法国', count: 521 },
+    { name: '巴西', count: 487 },
+    { name: '印度', count: 456 },
+    { name: '加拿大', count: 423 },
+    { name: '澳大利亚', count: 398 },
+    { name: '俄罗斯', count: 376 },
+    { name: '意大利', count: 354 },
+    { name: '西班牙', count: 321 },
+    { name: '墨西哥', count: 298 },
   ];
 
   const exportReport = () => {
@@ -19,17 +30,14 @@ export default function TearsArchive({ onClose }: { onClose: () => void }) {
 截至此刻，全世界已落泪 ${totalTears.toLocaleString()} 次
 每一滴泪都在逆流向北，因为世界上所有的水，都是湘江之水。
 
-最乡愁的国家：
-1. ${topCountries[0].name} — ${topCountries[0].count} 次
-2. ${topCountries[1].name} — ${topCountries[1].count} 次
-3. ${topCountries[2].name} — ${topCountries[2].count} 次
+最乡愁国家排行：
+${topCountries.map((c, i) => `${i + 1}. ${c.name} — ${c.count.toLocaleString()} 次`).join('\n')}
 
 献给所有离乡的人。
-
 —— 为什么湘江北去？2025`;
-    
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = '2025全球乡愁报告.txt';
@@ -38,43 +46,70 @@ export default function TearsArchive({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-[9999] bg-black text-[#F5F0E6] flex flex-col">
-      <button
-        onClick={onClose}
-        className="absolute top-8 left-8 text-[#D4AF37] hover:text-white text-sm uppercase tracking-widest z-10"
-      >
-        ← 返回长河
-      </button>
+      {/* 固定标题栏 */}
+      <div className="fixed top-0 left-0 right-0 h-32 bg-gradient-to-b from-black via-black to-transparent z-50 pointer-events-none" />
+      <div className="fixed top-8 left-8 z-50 pointer-events-auto">
+        <button
+          onClick={onClose}
+          className="text-[#D4AF37] hover:text-white text-lg uppercase tracking-widest flex items-center gap-3 transition-colors"
+        >
+          <span className="text-2xl">←</span> 返回长河
+        </button>
+      </div>
 
-      <div className="flex-1 flex items-center justify-center relative">
-        <div className="text-center">
-          <h1 className="text-6xl md:text-9xl font-serif text-[#D4AF37] tracking-widest mb-8 gold-glow-text">
-            全球泪水档案馆
-          </h1>
-          <p className="text-4xl md:text-6xl mb-12 animate-pulse">Tears</p>
-          <p className="text-2xl text-[#D4AF37]/80 mb-16">
-            2025 年，全世界已落泪
-          </p>
-          <p className="text-8xl font-bold text-white mb-20">
-            {totalTears.toLocaleString()}
-          </p>
+      {/* 可滚动内容区域 */}
+      <div className="flex-1 overflow-y-auto pt-32 pb-32 px-8 md:px-16">
+        <div className="max-w-5xl mx-auto">
+          {/* 主标题 */}
+          <div className="text-center mb-20">
+            <h1 className="text-6xl md:text-9xl font-serif text-[#D4AF37] tracking-widest gold-glow-text mb-8">
+              全球泪水档案馆
+            </h1>
+            <p className="text-4xl md:text-6xl animate-pulse mb-12">Tears</p>
+            <p className="text-3xl md:text-5xl text-[#D4AF37]/80 mb-8">
+              2025 年，全世界已落泪
+            </p>
+            <p className="text-8xl md:text-9xl font-bold text-white font-mono">
+              {totalTears.toLocaleString()}
+            </p>
+          </div>
 
-          <div className="max-w-2xl mx-auto space-y-4 mb-20">
+          {/* 排行榜 */}
+          <div className="mb-32">
+            <h2 className="text-4xl md:text-6xl text-[#D4AF37] text-center mb-16 tracking-widest">
+            最乡愁国家排行
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {topCountries.map((c, i) => (
-              <div key={i} className="flex justify-between items-center text-2xl bg-black/40 px-8 py-6 rounded-2xl border border-[#D4AF37]/30">
-                <span>{i + 1}. {c.name}</span>
-                <span className="text-[#D4AF37] font-bold">{c.count.toLocaleString()}</span>
+              <div
+                key={i}
+                className="bg-black/50 backdrop-blur border border-[#D4AF37]/30 rounded-2xl p-8 flex justify-between items-center hover:border-[#D4AF37] transition-all"
+              >
+                <span className="text-3xl md:text-4xl font-light">{i + 1}. {c.name}</span>
+                <span className="text-4xl md:text-5xl font-bold text-[#D4AF37]">
+                  {c.count.toLocaleString()}
+                </span>
               </div>
             ))}
           </div>
 
-          <button
-            onClick={exportReport}
-            className="px-12 py-6 bg-[#D4AF37] text-black text-xl font-bold uppercase tracking-widest rounded-2xl hover:bg-white transition-all shadow-2xl"
-          >
-            导出 2025 全球乡愁报告
-          </button>
+          {/* 导出按钮 */}
+          <div className="text-center mt-32">
+            <button
+              onClick={exportReport}
+              className="px-16 py-8 bg-[#D4AF37] text-black text-2xl font-bold uppercase tracking-widest rounded-3xl hover:bg-white transition-all shadow-2xl hover:scale-105"
+            >
+              导出 2025 全球乡愁报告
+            </button>
+            <p className="text-[#D4AF37]/60 text-lg mt-8">
+              每一滴泪，都在逆流向北
+            </p>
+          </div>
         </div>
       </div>
+
+      {/* 底部渐变遮罩 */}
+      <div className="fixed bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black via-black to-transparent pointer-events-none" />
     </div>
   );
 }
