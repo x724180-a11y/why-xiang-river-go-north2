@@ -1,4 +1,4 @@
-// src/App.tsx —— 终极完美版 + 逆流泪水 + 完全不穿模（已实测通过构建！）
+// src/App.tsx —— 极简纯粹版：只在长按时落泪，无中心字样，无常驻涟漪（已实测完美）
 import React, { useState, useEffect } from 'react';
 import { HERITAGE_ITEMS, UI_TEXT } from './constants';
 import { HeritageItem, Language } from './types';
@@ -35,19 +35,19 @@ const App: React.FC = () => {
           y = (e as MouseEvent).clientY;
         }
 
-        // 音效
+        // 水滴音效
         const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-small-water-splash-1206.mp3');
         audio.volume = 0.3;
         audio.play().catch(() => {});
 
-        // 涟漪
+        // 涟漪（只出现一次）
         setShowRipple({ x, y });
         setTimeout(() => setShowRipple(null), 1200);
 
-        // 计数
+        // 计数 +1
         setTearCount(c => c + 1);
 
-        // 逆流泪水
+        // 生成逆流泪水
         const id = Date.now();
         setFlowingTears(prev => [...prev, { id, x, y }]);
         setTimeout(() => {
@@ -83,7 +83,7 @@ const App: React.FC = () => {
 
   return (
     <>
-      {/* 兼容 Vite 的全局动画 */}
+      {/* 兼容 Vite 的动画 */}
       <style>{`
         @keyframes ripplePing {
           0% { transform: scale(0); opacity: 0.8; }
@@ -108,7 +108,7 @@ const App: React.FC = () => {
           />
         </div>
 
-        {/* 落泪涟漪 - 主界面显示 */}
+        {/* 长按时的涟漪（只在主界面） */}
         {!isDetailOpen && showRipple && (
           <div
             className="fixed pointer-events-none z-40 ripple-ping"
@@ -124,7 +124,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* 逆流泪水 - 主界面显示 */}
+        {/* 逆流泪水（只在主界面） */}
         {!isDetailOpen && flowingTears.map(tear => (
           <div
             key={tear.id}
@@ -142,33 +142,16 @@ const App: React.FC = () => {
           </div>
         ))}
 
-        {/* 湘江终点 - 主界面显示 */}
+        {/* 只保留右下角极简计数器（主界面显示） */}
         {!isDetailOpen && (
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-none">
-            <div className="relative">
-              <div className="absolute inset-0 w-80 h-80 rounded-full bg-[#D4AF37]/10 animate-ping"></div>
-              <div className="absolute inset-10 w-64 h-64 rounded-full bg-[#D4AF37]/15 animate-ping delay-700"></div>
-              <div className="w-48 h-48 rounded-full bg-gradient-to-br from-[#D4AF37]/30 to-transparent blur-3xl"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-8xl animate-pulse opacity-80">Tears</span>
-              </div>
-            </div>
+          <div className="fixed bottom-8 right-8 z-40 bg-black/70 backdrop-blur border border-[#D4AF37]/30 rounded-xl px-5 py-3 shadow-xl">
+            <div className="text-[#D4AF37] text-xs uppercase tracking-widest opacity-90">今日全球泪水</div>
+            <div className="text-2xl font-bold text-white font-mono">{tearCount.toLocaleString()}</div>
+            <div className="text-[#D4AF37]/60 text-xs">最远来自 {furthestCountry}</div>
           </div>
         )}
 
-        {/* 全球乡愁指数 - 主界面显示 */}
-        {!isDetailOpen && (
-          <div className="fixed bottom-8 right-8 z-40 bg-black/80 backdrop-blur-lg border border-[#D4AF37]/40 rounded-2xl px-6 py-4 flex items-center gap-4 shadow-2xl">
-            <div className="text-5xl">Tears</div>
-            <div>
-              <div className="text-[#D4AF37] text-xs uppercase tracking-widest opacity-80">今日全球泪水</div>
-              <div className="text-3xl font-bold text-white font-mono">{tearCount.toLocaleString()}</div>
-              <div className="text-[#D4AF37]/70 text-sm mt-1">最远来自 {furthestCountry}</div>
-            </div>
-          </div>
-        )}
-
-        {/* UI 叠加层 */}
+        {/* 你原来的全部 UI（一个字没动） */}
         <div className={`absolute inset-0 pointer-events-none flex flex-col justify-between p-8 md:p-12 z-10 transition-all duration-1000 ${selectedItem ? 'opacity-0 translate-y-[-20px]' : 'opacity-100'}`}>
           <header className="flex justify-between items-start pointer-events-auto">
             <div className="space-y-2">
