@@ -2,10 +2,12 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { HeritageItem } from '../types';
 
+// 只加这一行
 interface RiverVisualizerProps {
   items: HeritageItem[];
   onSelect: (item: HeritageItem) => void;
   filteredRegion: string;
+  isDetailOpen?: boolean; // ← 新增：详情页打开时禁用点击
 }
 
 const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filteredRegion }) => {
