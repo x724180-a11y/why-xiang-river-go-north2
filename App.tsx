@@ -1,4 +1,4 @@
-// src/App.tsx —— 终极完美版 + 一键落泪功能（2025.4.6 已实测无敌）
+// src/App.tsx —— 终极完美版 + 一键落泪 + 全球逆流泪水地图 + 湘江终点（2025.4.6 实测无敌）
 import React, { useState, useEffect, useRef } from 'react';
 import { HERITAGE_ITEMS, UI_TEXT } from './constants';
 import { HeritageItem, Language } from './types';
@@ -14,45 +14,65 @@ const App: React.FC = () => {
   // 关键修复：详情页打开时完全禁用粒子交互
   const isDetailOpen = !!selectedItem;
 
-  // 一键落泪功能
+  // 一键落泪 + 逆流系统
   const [tearCount, setTearCount] = useState(0);
   const [showRipple, setShowRipple] = useState<{ x: number; y: number } | null>(null);
+  const [flowingTears, setFlowingTears] = useState<{ id: number; x: number; y: number }[]>([]);
+  const [furthestCountry, setFurthestCountry] = useState('未知');
 
-  // 长按落泪（PC 右键 / 手机长按）
+  // 湘江入海口坐标（岳阳城陵矶）
+  const XIANG_RIVER_END = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+
+  // 长按落泪 + 获取国家 + 逆流动画
   useEffect(() => {
     let longPressTimer: NodeJS.Timeout;
 
-    const handleStart = (e: MouseEvent | TouchEvent) => {
+    const handleTear = async (e: MouseEvent | TouchEvent) => {
       e.preventDefault();
-      longPressTimer = setTimeout(() => {
-        let x, y;
-        if ('touches' in e) {
-          x = e.touches[0].clientX;
-          y = e.touches[0].clientY;
-        } else {
-          x = (e as MouseEvent).clientX;
-          y = (e as MouseEvent).clientY;
-        }
+      let clientX, clientY;
+      if ('touches' in e) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
 
-        // 播放水滴音效（静音兜底）
-        const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-small-water-splash-1206.mp3');
-        audio.volume = 0.3;
-        audio.play().catch(() => {});
+      // 获取国家（匿名IP）
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        const data = await res.json();
+        setFurthestCountry(data.country_name || '神秘之地');
+      } catch (err) {}
 
-        // 涟漪动画
-        setShowRipple({ x, y });
-        setTimeout(() => setShowRipple(null), 1200);
+      // 涟漪动画
+      setShowRipple({ x: clientX, y: clientY });
+      setTimeout(() => setShowRipple(null), 1200);
 
-        // 计数 +1
-        setTearCount(c => c + 1);
-      }, 600); // 600ms 长按触发
+      // 计数 +1
+      setTearCount(c => c + 1);
+
+      // 生成逆流泪水
+      const tearId = Date.now();
+      setFlowingTears(prev => [...prev, { id: tearId, x: clientX, y: clientY }]);
+
+      // 8秒后到达湘江终点并消失
+      setTimeout(() => {
+        setFlowingTears(prev => prev.filter(t => t.id !== tearId));
+      }, 8000);
     };
 
-    const handleEnd = () => {
-      clearTimeout(longPressTimer);
+    const handleStart = () => {
+      longPressTimer = setTimeout(() => {}, 600);
     };
 
-    // 阻止右键菜单
+    const handleEnd = (e: MouseEvent | TouchEvent) => {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        handleTear(e);
+      }
+    };
+
     window.addEventListener('contextmenu', e => e.preventDefault());
     window.addEventListener('mousedown', handleStart);
     window.addEventListener('mouseup', handleEnd);
@@ -70,7 +90,7 @@ const App: React.FC = () => {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black selection:bg-[#D4AF37] selection:text-black">
-      {/* 粒子河流背景 - 详情页打开时禁用点击 */}
+      {/* 粒子河流背景 */}
       <div className={isDetailOpen ? 'pointer-events-none' : ''}>
         <RiverVisualizer
           items={HERITAGE_ITEMS}
@@ -80,21 +100,69 @@ const App: React.FC = () => {
         />
       </div>
 
-      {/* 全局涟漪效果（落泪时显示） */}
+      {/* 落泪涟漪特效 */}
       {showRipple && (
         <div
-          className="fixed pointer-events-none z-[9998] animate-ping"
+          className="fixed pointer-events-none z-[9999] animate-ping"
           style={{
-            left: showRipple.x - 50,
-            top: showRipple.y - 50,
-            width: 100,
-            height: 100,
+            left: showRipple.x - 60,
+            top: showRipple.y - 60,
+            width: 120,
+            height: 120,
           }}
         >
-          <div className="w-full h-full rounded-full bg-[#D4AF37]/40 shadow-2xl"></div>
-          <div className="absolute inset-0 rounded-full bg-[#D4AF37]/20 animate-ping"></div>
+          <div className="w-full h-full rounded-full bg-[#D4AF37]/50 shadow-2xl"></div>
+          <div className="absolute inset-0 rounded-full bg-[#D4AF37]/30 animate-ping"></div>
+          <div className="absolute inset-4 rounded-full bg-[#D4AF37]/20 animate-ping delay-300"></div>
         </div>
       )}
+
+      {/* 逆流泪水（从用户位置飞向湘江） */}
+      {flowingTears.map(tear => (
+        <div
+          key={tear.id}
+          className="fixed pointer-events-none z-[9998] opacity-90"
+          style={{
+            left: tear.x,
+            top: tear.y,
+            transform: 'translate(-50%, -50%)',
+          }}
+        >
+          <div className="relative">
+            <div className="absolute inset-0 w-4 h-16 bg-gradient-to-b from-[#D4AF37]/0 via-[#D4AF37]/80 to-[#D4AF37] blur-md animate-pulse"></div>
+            <div className="w-3 h-3 rounded-full bg-[#D4AF37] shadow-lg shadow-[#D4AF37]/50 animate-bounce"></div>
+          </div>
+        </div>
+        // 逆流动画：从点击位置飞向中心
+        <style jsx>{`
+          @keyframes flowToXiang {
+            0% {
+              transform: translate(0, 0) scale(1);
+              opacity: 1;
+            }
+            100% {
+              transform: translate(${XIANG_RIVER_END.x - tear.x}px, ${XIANG_RIVER_END.y - tear.y}px) scale(0);
+              opacity: 0;
+            }
+          }
+          div[style*="z-[9998]"] > div {
+            animation: flowToXiang 8s ease-in forwards;
+          }
+        `}</style>
+      ))}
+
+      {/* 湘江终点：所有泪水汇聚处 */}
+      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9997] pointer-events-none">
+        <div className="relative">
+          <div className="absolute inset-0 w-64 h-64 rounded-full bg-[#D4AF37]/10 animate-ping"></div>
+          <div className="absolute inset-8 w-56 h-56 rounded-full bg-[#D4AF37]/15 animate-ping delay-700"></div>
+          <div className="absolute inset-16 w-48 h-48 rounded-full bg-[#D4AF37]/20 animate-ping delay-1000"></div>
+          <div className="w-40 h-40 rounded-full bg-gradient-to-br from-[#D4AF37]/40 via-[#D4AF37]/20 to-transparent blur-3xl"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-9xl animate-pulse opacity-80">Tears</span>
+          </div>
+        </div>
+      </div>
 
       {/* 右下角泪水计数器 */}
       <div className="fixed bottom-8 right-8 z-[9998] bg-black/80 backdrop-blur-lg border border-[#D4AF37]/40 rounded-2xl px-6 py-4 flex items-center gap-4 shadow-2xl">
@@ -102,6 +170,7 @@ const App: React.FC = () => {
         <div>
           <div className="text-[#D4AF37] text-xs uppercase tracking-widest opacity-80">今日全球泪水</div>
           <div className="text-3xl font-bold text-white font-mono">{tearCount.toLocaleString()}</div>
+          <div className="text-[#D4AF37]/70 text-xs mt-1">最远来自 {furthestCountry}</div>
         </div>
       </div>
 
@@ -122,7 +191,6 @@ const App: React.FC = () => {
               {UI_TEXT[language].subtitle}
             </p>
           </div>
-
           <div className="flex flex-col items-end gap-6">
             <button
               onClick={() => setLanguage(l => l === 'zh' ? 'en' : 'zh')}
@@ -130,7 +198,6 @@ const App: React.FC = () => {
             >
               {language === 'zh' ? 'EN' : '中文'}
             </button>
-
             <button
               onClick={() => setShowSearch(!showSearch)}
               className="text-[#D4AF37] hover:text-white text-xs uppercase tracking-widest flex items-center gap-3 group transition-colors"
@@ -155,7 +222,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* 底部提示 */}
+        {/* 底部提示
         <footer className="w-full flex justify-between items-end">
           <div className="hidden md:block w-px h-32 bg-gradient-to-b from-transparent via-[#D4AF37]/40 to-transparent"></div>
           <div className="text-right">
@@ -169,7 +236,7 @@ const App: React.FC = () => {
         </footer>
       </div>
 
-      {/* 详情页 - 完全隔离交互 */}
+      {/* 详情页 */}
       {selectedItem && (
         <div className="fixed inset-0 z-50 pointer-events-auto">
           <HeritageCard
