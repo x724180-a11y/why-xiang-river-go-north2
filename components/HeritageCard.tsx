@@ -25,11 +25,10 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
     const p = poems[idx];
     return (
   <div
-    className="fixed inset-0 z-[9999] bg-black text-[#F5F0E6] overflow-y-auto sanctuary-scroll animate-fade-in-up pointer-events-auto"
+    className="fixed inset-0 z-50 bg-black/95 text-[#F5F0E6] overflow-y-auto sanctuary-scroll animate-fade-in-up pointer-events-auto"
     onScroll={handleScroll}
-    onClick={(e) => e.stopPropagation()} // ← 加上这行，彻底隔离！
-  >  }, [item]);
-  // AI Studio State
+    onClick={(e) => e.stopPropagation()}
+  >  // AI Studio State
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
