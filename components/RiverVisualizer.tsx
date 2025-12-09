@@ -2,12 +2,10 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { HeritageItem } from '../types';
 
-// 只加这一行
 interface RiverVisualizerProps {
   items: HeritageItem[];
   onSelect: (item: HeritageItem) => void;
   filteredRegion: string;
-  isDetailOpen?: boolean; // ← 新增：详情页打开时禁用点击
 }
 
 const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filteredRegion }) => {
@@ -19,9 +17,10 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
   // Picking Refs
   const pickingSceneRef = useRef<THREE.Scene | null>(null);
   const pickingTargetRef = useRef<THREE.WebGLRenderTarget | null>(null);
+  const pickingMeshRef = useRef<THREE.Points | null>(null);
+  const visualMeshRef = useRef<THREE.Points | null>(null);
+
   const activeItemsRef = useRef<HeritageItem[]>([]);
-  const featuredItemsRef = useRef<HeritageItem[]>([]);
-  
   const animationFrameRef = useRef<number>(0);
   const clockRef = useRef<THREE.Clock>(new THREE.Clock());
 
@@ -37,14 +36,9 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
     );
   }, [items, filteredRegion]);
 
-  // Keep a separate ref for only "Real" items to use in the fallback random selection
-  // This prevents clicking the void from opening "Unrecorded Heritage"
-  const featuredItems = useMemo(() => items.filter(i => !i.isProcedural), [items]);
-
   useEffect(() => {
     activeItemsRef.current = activeItems;
-    featuredItemsRef.current = featuredItems;
-  }, [activeItems, featuredItems]);
+  }, [activeItems]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -99,7 +93,7 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
     const phases = new Float32Array(count);
     const pickingColors = new Float32Array(count * 3);
 
-    // Color Palette: Gold to Amber (Restored High Quality Palette)
+    // Color Palette: Gold to Amber
     const colorPalette = [
         new THREE.Color('#D4AF37'), 
         new THREE.Color('#C5A028'), 
@@ -118,7 +112,6 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
       positions[i * 3 + 1] = y;
       positions[i * 3 + 2] = z;
 
-      // Real items are larger
       const isImportant = !activeItems[i].isProcedural;
       sizes[i] = isImportant ? 40 + Math.random() * 20 : 15 + Math.random() * 15;
 
@@ -144,15 +137,14 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
     geometry.setAttribute('pickingColor', new THREE.BufferAttribute(pickingColors, 3));
 
     // --- SHADER LOGIC (SHARED) ---
-    // This defines the "Liquid Gold" look. 
-    // We use Simplex Noise to displace particles over time.
+    // The shader logic must be IDENTICAL for both materials to ensure alignment
     const shaderLogic = `
         uniform float time;
         uniform float pixelRatio;
         attribute float size;
         attribute float phase;
         
-        // Simplex Noise (GLSL) - Restored for fluid effect
+        // Simplex Noise (GLSL)
         vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
         vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
         vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
@@ -205,12 +197,10 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
         }
     `;
 
-    // Shared Vertex Position Logic
     const mainVertexLogic = `
           float flowSpeed = 20.0;
           float newX = mod(position.x + time * flowSpeed + 4000.0, 8000.0) - 4000.0;
           
-          // Noise calculation for organic flow
           float noiseFreq = 0.0015;
           float noiseAmp = 80.0;
           float yOffset = snoise(vec3(newX * noiseFreq, position.z * noiseFreq, time * 0.2)) * noiseAmp;
@@ -224,7 +214,7 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
           gl_PointSize = size * pixelRatio * (600.0 / -mvPosition.z);
     `;
 
-    // 1. VISUAL MATERIAL (The Golden Look)
+    // 1. VISUAL MATERIAL
     const material = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
@@ -240,7 +230,6 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
           vColor = color;
           ${mainVertexLogic}
           
-          // Fade out edges for infinity illusion
           float distEdge = min(smoothstep(-4000.0, -3000.0, newX), smoothstep(4000.0, 3000.0, newX));
           vAlpha = distEdge * (0.6 + 0.4 * sin(time * 2.0 + phase));
         }
@@ -252,7 +241,7 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
         void main() {
           vec2 coord = gl_PointCoord - vec2(0.5);
           float r = length(coord);
-          if (r > 0.5) discard; // Round particles for visual
+          if (r > 0.5) discard;
           
           float glow = 1.0 - (r * 2.0);
           glow = pow(glow, 1.5);
@@ -265,7 +254,7 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
       blending: THREE.AdditiveBlending
     });
 
-    // 2. PICKING MATERIAL (The Interaction Logic)
+    // 2. PICKING MATERIAL (Output ID Color, No Alpha blending, No Lights)
     const pickingMaterial = new THREE.ShaderMaterial({
         uniforms: {
             time: { value: 0 },
@@ -284,37 +273,41 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
         fragmentShader: `
             varying vec3 vPickingColor;
             void main() {
-                // IMPORTANT: NO DISCARD here (or very minimal)
-                // We draw a full square for hit testing to make clicking easier
+                vec2 coord = gl_PointCoord - vec2(0.5);
+                // Important: Discard edges so circle shape matches click area
+                if (length(coord) > 0.5) discard; 
                 gl_FragColor = vec4(vPickingColor, 1.0);
             }
         `,
-        transparent: false,
-        blending: THREE.NoBlending
+        transparent: false, // Opaque for picking
+        blending: THREE.NoBlending // Just raw color
     });
 
     const particles = new THREE.Points(geometry, material);
     scene.add(particles);
+    visualMeshRef.current = particles;
 
     const pickingParticles = new THREE.Points(geometry, pickingMaterial);
     pickingScene.add(pickingParticles);
+    pickingMeshRef.current = pickingParticles;
 
     // --- EVENTS ---
     const handleClick = (event: MouseEvent) => {
         if (!containerRef.current || !rendererRef.current || !pickingTargetRef.current) return;
 
+        // 1. Prepare view offset to render ONLY the pixel under mouse
         const rect = containerRef.current.getBoundingClientRect();
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
         
-        // 1. Virtual Camera Windowing (1x1 pixel)
+        // This is the magic: Virtual camera windowing
         camera.setViewOffset(rect.width, rect.height, mouseX, mouseY, 1, 1);
         
-        // 2. Render Picking Scene
+        // 2. Render Picking Scene to 1x1 Target
         rendererRef.current.setRenderTarget(pickingTargetRef.current);
         rendererRef.current.render(pickingScene, camera);
         
-        // 3. Read Pixel
+        // 3. Read the pixel
         const pixelBuffer = new Uint8Array(4); // RGBA
         rendererRef.current.readRenderTargetPixels(pickingTargetRef.current, 0, 0, 1, 1, pixelBuffer);
         
@@ -326,7 +319,7 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
         const id = (pixelBuffer[0] << 16) | (pixelBuffer[1] << 8) | pixelBuffer[2];
 
         if (id > 0) {
-            // HIT SPECIFIC ITEM
+            // HIT: Select specific item
             const index = id - 1;
             if (activeItemsRef.current[index]) {
                 onSelect(activeItemsRef.current[index]);
@@ -334,15 +327,12 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
             }
         } 
         
-        // MISS / VOID CLICK -> Fallback to random REAL item
-        if (featuredItemsRef.current.length > 0) {
-            const randomIndex = Math.floor(Math.random() * featuredItemsRef.current.length);
-            onSelect(featuredItemsRef.current[randomIndex]);
+        // MISS / VOID CLICK: Select Random Item per Spec
+        // "System immediately selects one 100% random cultural heritage item"
+        if (activeItemsRef.current.length > 0) {
+            const randomIndex = Math.floor(Math.random() * activeItemsRef.current.length);
+            onSelect(activeItemsRef.current[randomIndex]);
         }
-    };
-
-    const handleMouseMove = () => {
-        document.body.style.cursor = 'pointer'; 
     };
 
     const handleResize = () => {
@@ -355,7 +345,6 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
        pickingMaterial.uniforms.pixelRatio.value = renderer.getPixelRatio();
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('click', handleClick);
     window.addEventListener('resize', handleResize);
 
@@ -377,8 +366,8 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
     
     animate();
 
+    // CLEANUP
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('click', handleClick);
       window.removeEventListener('resize', handleResize);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
@@ -395,7 +384,7 @@ const RiverVisualizer: React.FC<RiverVisualizerProps> = ({ items, onSelect, filt
       material.dispose();
       pickingMaterial.dispose();
     };
-  }, [activeItems, featuredItems, onSelect]);
+  }, [activeItems, onSelect]);
 
   return <div ref={containerRef} className="absolute inset-0 z-0 bg-black cursor-pointer" />;
 };
