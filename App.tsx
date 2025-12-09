@@ -1,9 +1,10 @@
-// src/App.tsx —— 极简纯粹版：只在长按时落泪，无中心字样，无常驻涟漪（已实测完美）
+// src/App.tsx —— 极简纯粹版 + 点击计数器进入「全球泪水档案馆」（已实测完美）
 import React, { useState, useEffect } from 'react';
 import { HERITAGE_ITEMS, UI_TEXT } from './constants';
 import { HeritageItem, Language } from './types';
 import RiverVisualizer from './components/RiverVisualizer';
 import HeritageCard from './components/HeritageCard';
+import TearsArchive from './pages/TearsArchive';   // ← 新增：档案馆页面
 
 const App: React.FC = () => {
   const [language, setLanguage] = useState<Language>('en');
@@ -18,6 +19,9 @@ const App: React.FC = () => {
   const [showRipple, setShowRipple] = useState<{ x: number; y: number } | null>(null);
   const [flowingTears, setFlowingTears] = useState<{ id: number; x: number; y: number }[]>([]);
   const [furthestCountry, setFurthestCountry] = useState('未知');
+
+  // ← 新增：控制档案馆弹窗
+  const [showTearsArchive, setShowTearsArchive] = useState(false);
 
   // 长按落泪（你原来的逻辑完整保留）
   useEffect(() => {
@@ -142,9 +146,12 @@ const App: React.FC = () => {
           </div>
         ))}
 
-        {/* 只保留右下角极简计数器（主界面显示） */}
+        {/* 右下角计数器 → 点击进入档案馆 */}
         {!isDetailOpen && (
-          <div className="fixed bottom-8 right-8 z-40 bg-black/70 backdrop-blur border border-[#D4AF37]/30 rounded-xl px-5 py-3 shadow-xl">
+          <div
+            onClick={() => setShowTearsArchive(true)}
+            className="fixed bottom-8 right-8 z-40 bg-black/70 backdrop-blur border border-[#D4AF37]/30 rounded-xl px-5 py-3 shadow-xl cursor-pointer hover:scale-105 transition-transform"
+          >
             <div className="text-[#D4AF37] text-xs uppercase tracking-widest opacity-90">今日全球泪水</div>
             <div className="text-2xl font-bold text-white font-mono">{tearCount.toLocaleString()}</div>
             <div className="text-[#D4AF37]/60 text-xs">最远来自 {furthestCountry}</div>
@@ -217,6 +224,11 @@ const App: React.FC = () => {
               onNavigate={setSelectedItem}
             />
           </div>
+        )}
+
+        {/* 全球泪水档案馆弹窗 */}
+        {showTearsArchive && (
+          <TearsArchive onClose={() => setShowTearsArchive(false)} />
         )}
       </div>
     </>
