@@ -45,13 +45,10 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
   useEffect(() => {
     if (!mapContainerRef.current || !window.L) return;
 
-    // cleanup prev map
-    if (mapRef.current) {
-        mapRef.current.remove();
-    }
-
     const L = window.L;
-    
+    let mapInstance: any = null;
+    let flyTimer: NodeJS.Timeout;
+
     // Init map
     const map = L.map(mapContainerRef.current, {
         center: [item.coordinates.lat, item.coordinates.lng],
@@ -61,6 +58,7 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
         scrollWheelZoom: false,
         dragging: true
     });
+    mapInstance = map;
     mapRef.current = map;
 
     // CartoDB Positron (Light) - We will invert this with CSS to get Black/Gold
@@ -68,7 +66,7 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
         maxZoom: 19,
     }).addTo(map);
 
-    // CSS Class for styling tiles (handled in global styles via DOM manipulation if needed, but we rely on index.html CSS)
+    // CSS Class for styling tiles
     map.getContainer().classList.add('leaflet-container');
     const tilePane = map.getPane('tilePane');
     if(tilePane) tilePane.style.filter = 'invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) sepia(50%) saturate(200%) hue-rotate(10deg)';
@@ -101,14 +99,18 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
     });
 
     // Slow fly to
-    setTimeout(() => {
-         if (mapRef.current) {
-             map.flyTo([item.coordinates.lat, item.coordinates.lng], 6, { duration: 3 });
+    flyTimer = setTimeout(() => {
+         if (mapRef.current && mapRef.current === mapInstance) {
+             mapInstance.flyTo([item.coordinates.lat, item.coordinates.lng], 6, { duration: 3 });
          }
     }, 500);
 
     return () => {
-        if (mapRef.current) mapRef.current.remove();
+        clearTimeout(flyTimer);
+        if (mapInstance) {
+            mapInstance.remove();
+            mapRef.current = null;
+        }
     };
   }, [item, onNavigate]);
 
@@ -215,7 +217,6 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
       {/* --- IMMERSIVE MAP SECTION --- */}
       <div className="w-full h-[70vh] bg-black relative border-y border-[#D4AF37]/10 flex flex-col items-center justify-center overflow-hidden">
           
-          {/* Removed grayscale class to ensure gold markers are visible */}
           <div ref={mapContainerRef} className="w-full h-full z-0"></div>
 
           {/* Map Overlay Info */}
