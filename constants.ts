@@ -1,8 +1,3 @@
-import { UI_TEXT } from './uiText'; 
-
-export { UI_TEXT }; 
-
-
 // Curated Top-Tier Sites
 export const FEATURED_HERITAGE_ITEMS: HeritageItem[] = [
   {
@@ -214,37 +209,32 @@ export const POETRY_DATABASE: PoetryDatabase = {
   ]
 };
 
+// 删除你新建的 uiText.ts 文件！！！
+// 然后把 constants.ts 最后这段完整替换成下面这坨（包括 export）
+
 export const UI_TEXT = {
   zh: {
     title: '为什么湘江北去？',
     subtitle: '世界遗产永恒之河',
-    loading: '正在唤醒历史...',
-    location: '地理坐标',
     back: '返回长河',
+    history: '历史回响',
+    related: '同域遗产',
     reimagine: 'AI 意象重塑',
-    create: '创意工坊',
     prompt: '描述你心中的历史景象...',
-    promptPlaceholder: '在此描述你的创意灵感...',
     generate: '开始重塑',
     generating: '绘制中...',
-    download: '收藏影像',
-    history: '历史回响',
-    related: '同域遗产'
+    download: '收藏影像'
   },
   en: {
     title: 'Why Does the Xiang River Flow North?',
     subtitle: 'Eternal River of World Heritage',
-    loading: 'Awakening History...',
-    location: 'Coordinates',
     back: 'Return to River',
+    history: 'Echoes of History',
+    related: 'Regional Sites',
     reimagine: 'AI Reimagination',
-    create: 'Creative Studio',
     prompt: 'Describe your vision of history...',
-    promptPlaceholder: 'Describe your creative inspiration here...',
     generate: 'Reimagine',
     generating: 'Painting...',
-    download: 'Collect Visual',
-    history: 'Echoes of History',
-    related: 'Regional Sites'
+    download: 'Collect Visual'
   }
-};
+} as const;
