@@ -176,8 +176,7 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
             ref={heroRef}
             className="absolute inset-0 bg-cover bg-center transition-transform will-change-transform"
             style={{
-                backgroundImage: `url(${item.imageUrl})`,
-                filter: 'brightness(0.6) contrast(1.1) sepia(0.1)'
+                backgroundImage: `url(${currentImage || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600'})`,                filter: 'brightness(0.6) contrast(1.1) sepia(0.1)'
             }}
          ></div>
         
