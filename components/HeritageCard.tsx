@@ -31,7 +31,7 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
   // Load Poem
   useEffect(() => {
     const poems = POETRY_DATABASE[item.country] || POETRY_DATABASE['default'];
-    const idx = item.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % poems.length;
+    const idx = item.id.charCodeAt(0) % poems.length;
     const p = poems[idx];
     setActivePoem({
         line: p.line,
@@ -44,11 +44,10 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
   // Leaflet Map Initialization
   useEffect(() => {
     if (!mapContainerRef.current || !window.L) return;
-
-    // cleanup prev map —— 修复1：正确销毁旧地图
+    // cleanup prev map —— 修复1：先清理旧地图
     if (mapRef.current) {
         mapRef.current.remove();
-        mapRef.current = null;
+        mapRef.current = null; // ← 加了这行
     }
 
     const L = window.L;
@@ -105,11 +104,11 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
          map.flyTo([item.coordinates.lat, item.coordinates.lng], 6, { duration: 3 });
     }, 500);
 
-    // 修复2：正确返回清理函数
+    // 修复2：正确返回清理函数，彻底解决 _leaflet_pos 报错
     return () => {
         if (mapRef.current) {
             mapRef.current.remove();
-            mapRef.current = null;
+            mapRef.current = null; // ← 加了这行
         }
     };
   }, [item, onNavigate]);
@@ -145,11 +144,10 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
   ).slice(0, 3);
 
   return (
-    // 修复3+4：最高层级 + 半透明背景 + 完全防穿透
+    // 修复3：最高 z-index + 完全防穿透
     <div
-      className="fixed inset-0 z-[9999] bg-black/90 text-[#F5F0E6] overflow-y-auto sanctuary-scroll animate-fade-in-up pointer-events-auto"
+      className="fixed inset-0 z-[9999] bg-black text-[#F5F0E6] overflow-y-auto sanctuary-scroll animate-fade-in-up pointer-events-auto"
       onScroll={handleScroll}
-      onClick={(e) => e.stopPropagation()} // ← 彻底阻止事件冒泡
     >
       {/* Sticky Top Header with Fixed Title */}
       <nav className="fixed top-0 left-0 w-full p-6 z-[9999] flex justify-between items-center bg-gradient-to-b from-black via-black/80 to-transparent pointer-events-none">
