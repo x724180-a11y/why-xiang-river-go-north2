@@ -18,24 +18,41 @@ interface HeritageCardProps {
 
 const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, onNavigate }) => {
   const [activePoem, setActivePoem] = useState<{line: string, trans: string, author: string, year?: string} | null>(null);
+ 
+  // AI Studio State
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 
+  // 新增：智能图片加载器（永不白屏！）
+  const [currentImage, setCurrentImage] = useState<string>('');
+
+  // Refs
   const heroRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
 
-  // 新增：智能图片加载器（带 5 个备用图，永不白屏！）
-  const [currentImage, setCurrentImage] = useState<string>('');
+  // Load Poem
+  useEffect(() => {
+    const poems = POETRY_DATABASE[item.country] || POETRY_DATABASE['default'];
+    const idx = item.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % poems.length;
+    const p = poems[idx];
+    setActivePoem({
+        line: p.line,
+        trans: p.translation,
+        author: p.author,
+        year: p.year
+    });
+  }, [item]);
 
+  // 智能图片加载器（主图挂了自动换备用）
   useEffect(() => {
     const urls = [
-      item.imageUrl, // 主图
-      `https://images.unsplash.com/photo-1506905925346-5002d28f63d9?w=1600`, // 高质量备用
-      `https://images.unsplash.com/photo-1517332712256-6fb136b2d6a3?w=1600`, // 通用文化遗产图
-      `https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600`, // 金色古建筑
-      `https://images.unsplash.com/photo-1540889921-7185b936e762?w=1600`  // 备用金色图
+      item.imageUrl,
+      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600',
+      'https://images.unsplash.com/photo-1517332712256-6fb136b2d6a3?w=1600',
+      'https://images.unsplash.com/photo-1506905925346-5002d28f63d9?w=1600',
+      'https://images.unsplash.com/photo-1540889921-7185b936e762?w=1600'
     ];
 
     let index = 0;
@@ -43,7 +60,7 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
 
     const tryLoad = () => {
       if (index >= urls.length) {
-        setCurrentImage('https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600'); // 最终兜底
+        setCurrentImage('https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600');
         return;
       }
       img.src = urls[index];
@@ -57,12 +74,107 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
 
     tryLoad();
   }, [item.imageUrl]);
-  
+
+  // Leaflet Map Initialization
+  useEffect(() => {
+    if (!mapContainerRef.current || !window.L) return;
+
+    if (mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+    }
+
+    const L = window.L;
+   
+    const map = L.map(mapContainerRef.current, {
+        center: [item.coordinates.lat, item.coordinates.lng],
+        zoom: 4,
+        zoomControl: false,
+        attributionControl: false,
+        scrollWheelZoom: false,
+        dragging: true
+    });
+    mapRef.current = map;
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+    }).addTo(map);
+
+    map.getContainer().classList.add('leaflet-container');
+    const tilePane = map.getPane('tilePane');
+    if(tilePane) tilePane.style.filter = 'invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) sepia(50%) saturate(200%) hue-rotate(10deg)';
+
+    const mainIcon = L.divIcon({
+        className: 'custom-div-icon',
+        html: `<div class="gold-pulse-icon" style="width: 24px; height: 24px;"></div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+    });
+    L.marker([item.coordinates.lat, item.coordinates.lng], { icon: mainIcon }).addTo(map);
+
+    const siblings = HERITAGE_ITEMS.filter(i =>
+        !i.isProcedural && i.id !== item.id && i.country === item.country
+    );
+    siblings.forEach((sib: HeritageItem) => {
+        const dotIcon = L.divIcon({
+            className: 'custom-div-icon',
+            html: `<div class="gold-dot-icon" style="width: "width: 8px; height: 8px;"></div>`,
+            iconSize: [8, 8],
+            iconAnchor: [4, 4]
+        });
+        const m = L.marker([sib.coordinates.lat, sib.coordinates.lng], { icon: dotIcon }).addTo(map);
+        m.on('click', () => {
+             onNavigate(sib);
+        });
+    });
+
+    setTimeout(() => {
+         map.flyTo([item.coordinates.lat, item.coordinates.lng], 6, { duration: 3 });
+    }, 500);
+
+    return () => {
+        if (mapRef.current) {
+            mapRef.current.remove();
+            mapRef.current = null;
+        }
+    };
+  }, [item, onNavigate]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+     if (heroRef.current) {
+        const scrollTop = e.currentTarget.scrollTop;
+        if (scrollTop < window.innerHeight) {
+            heroRef.current.style.transform = `translateY(${scrollTop * 0.4}px)`;
+            heroRef.current.style.opacity = `${1 - scrollTop / 800}`;
+        }
+     }
+  };
+
+  const handleGenerate = async () => {
+    if (!prompt.trim()) return;
+    setIsGenerating(true);
+    setGeneratedImage(null);
+    try {
+      const fullPrompt = `Ink wash painting, masterpiece, ${item.nameEn}, ${prompt}. Negative space, gold leaf accents, traditional Chinese art style.`;
+      const result = await generateCreativeImage(fullPrompt);
+      setGeneratedImage(result);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const relatedItems = HERITAGE_ITEMS.filter(i =>
+    !i.isProcedural && i.id !== item.id && (i.country === item.country || i.continent === item.continent)
+  ).slice(0, 3);
+
   return (
-    // 修复3：最高 z-index + 完全防穿透
+    // 关键修复：改成半透明 + 最高层级 + 完全防穿透
     <div
-      className="fixed inset-0 z-[9999] bg-black text-[#F5F0E6] overflow-y-auto sanctuary-scroll animate-fade-in-up pointer-events-auto"
+      className="fixed inset-0 z-[9999] bg-black/90 text-[#F5F0E6] overflow-y-auto sanctuary-scroll animate-fade-in-up pointer-events-auto"
       onScroll={handleScroll}
+      onClick={(e) => e.stopPropagation()} // 彻底阻止事件冒泡
     >
       {/* Sticky Top Header with Fixed Title */}
       <nav className="fixed top-0 left-0 w-full p-6 z-[9999] flex justify-between items-center bg-gradient-to-b from-black via-black/80 to-transparent pointer-events-none">
@@ -73,7 +185,6 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
              <div className="w-12 h-[1px] bg-[#D4AF37] group-hover:w-20 transition-all duration-500"></div>
              <span className="font-serif tracking-[0.2em] text-xs uppercase text-[#D4AF37] opacity-80 group-hover:opacity-100">{UI_TEXT[language].back}</span>
          </div>
-         {/* The Permanent Fixed Title */}
          <div className="absolute left-1/2 -translate-x-1/2 text-center pointer-events-auto">
             <h1 className="text-xl md:text-2xl text-[#D4AF37] font-serif font-light tracking-widest gold-glow-text opacity-90">
                 为什么湘江北去？
@@ -86,12 +197,13 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
 
       {/* --- HERO SECTION --- */}
       <div className="relative h-screen w-full overflow-hidden flex items-end justify-center pb-24">
-         {/* Parallax Background */}
+         {/* Parallax Background - 关键修复：用 currentImage */}
          <div
             ref={heroRef}
             className="absolute inset-0 bg-cover bg-center transition-transform will-change-transform"
             style={{
-                backgroundImage: `url(${currentImage || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600'})`,                filter: 'brightness(0.6) contrast(1.1) sepia(0.1)'
+                backgroundImage: `url(${currentImage || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600'})`,
+                filter: 'brightness(0.6) contrast(1.1) sepia(0.1)'
             }}
          ></div>
         
@@ -108,7 +220,6 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
              <h2 className="text-5xl md:text-7xl lg:text-8xl font-serif text-[#F5F0E6] mb-8 drop-shadow-2xl leading-none">
                  {language === 'zh' ? item.nameZh : item.nameEn}
              </h2>
-             {/* Poetic Invocation (Immediately Below Hero Title) */}
              {activePoem && (
                 <div className="mt-12 space-y-4 max-w-2xl mx-auto border-t border-[#D4AF37]/30 pt-8">
                     <p className="text-2xl md:text-3xl font-serif text-[#D4AF37] italic font-light font-serif-sc">
@@ -129,7 +240,6 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
       <div className="w-full h-[70vh] bg-black relative border-y border-[#D4AF37]/10 flex flex-col items-center justify-center overflow-hidden">
          
           <div ref={mapContainerRef} className="w-full h-full z-0 grayscale"></div>
-          {/* Map Overlay Info */}
           <div className="absolute bottom-8 left-8 z-[400] bg-black/80 backdrop-blur border border-[#D4AF37]/30 px-4 py-2 text-[#D4AF37] text-xs tracking-[0.2em] font-mono pointer-events-none">
               {Math.abs(item.coordinates.lat).toFixed(4)}° {item.coordinates.lat > 0 ? 'N' : 'S'}
               <span className="mx-2">|</span>
@@ -140,7 +250,6 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
       {/* --- NARRATIVE CHAPTERS --- */}
       <div className="max-w-5xl mx-auto px-6 py-32 space-y-24 bg-black">
          
-          {/* Chapter 1: History */}
           <section className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start">
              <div className="md:col-span-4 sticky top-32">
                  <h3 className="text-[#D4AF37] text-xs uppercase tracking-[0.4em] mb-4">Chapter I</h3>
@@ -162,7 +271,6 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
              </div>
           </section>
 
-          {/* Related Sites */}
           {relatedItems.length > 0 && (
             <section className="pt-12 border-t border-[#D4AF37]/10">
                 <h3 className="text-[#D4AF37] text-xs uppercase tracking-[0.4em] mb-12 text-center">{UI_TEXT[language].related}</h3>
