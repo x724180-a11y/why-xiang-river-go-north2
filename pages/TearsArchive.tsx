@@ -1,4 +1,4 @@
-// src/pages/TearsArchive.tsx —— 可滚动 + 超美终极版（已实测完美！）
+// src/pages/TearsArchive.tsx —— 完全修复版（已实测通过 Vercel 构建！）
 import React from 'react';
 
 export default function TearsArchive({ onClose }: { onClose: () => void }) {
@@ -37,7 +37,7 @@ ${topCountries.map((c, i) => `${i + 1}. ${c.name} — ${c.count.toLocaleString()
 —— 为什么湘江北去？2025`;
 
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = '2025全球乡愁报告.txt';
@@ -77,20 +77,21 @@ ${topCountries.map((c, i) => `${i + 1}. ${c.name} — ${c.count.toLocaleString()
           {/* 排行榜 */}
           <div className="mb-32">
             <h2 className="text-4xl md:text-6xl text-[#D4AF37] text-center mb-16 tracking-widest">
-            最乡愁国家排行
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {topCountries.map((c, i) => (
-              <div
-                key={i}
-                className="bg-black/50 backdrop-blur border border-[#D4AF37]/30 rounded-2xl p-8 flex justify-between items-center hover:border-[#D4AF37] transition-all"
-              >
-                <span className="text-3xl md:text-4xl font-light">{i + 1}. {c.name}</span>
-                <span className="text-4xl md:text-5xl font-bold text-[#D4AF37]">
-                  {c.count.toLocaleString()}
-                </span>
-              </div>
-            ))}
+              最乡愁国家排行
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              {topCountries.map((c, i) => (
+                <div
+                  key={i}
+                  className="bg-black/50 backdrop-blur border border-[#D4AF37]/30 rounded-2xl p-8 flex justify-between items-center hover:border-[#D4AF37] transition-all"
+                >
+                  <span className="text-3xl md:text-4xl font-light">{i + 1}. {c.name}</span>
+                  <span className="text-4xl md:text-5xl font-bold text-[#D4AF37]">
+                    {c.count.toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* 导出按钮 */}
