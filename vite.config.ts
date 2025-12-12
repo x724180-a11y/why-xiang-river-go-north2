@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, '.'),
       }
     },
-    base: './',   // ← 加上这一行！关键！解决双击黑屏
+    base: './',           // ← 关键！必须有这一行
     build: {
       outDir: 'dist'
     }
