@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, '.'),
       }
     },
-    base: './',           // ← 关键！必须有这一行
+    base: '/',           // ← 关键！必须有这一行
     build: {
       outDir: 'dist'
     }
