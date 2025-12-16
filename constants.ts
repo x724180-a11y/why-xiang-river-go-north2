@@ -1,6 +1,6 @@
 import { HeritageItem } from '../types';
 
-// 唯一正确的 UI_TEXT（中英文永不闪退！）
+
 export const UI_TEXT = {
   zh: {
     title: '为什么湘江北去？',
@@ -560,13 +560,13 @@ const generateProceduralItems = (count: number): HeritageItem[] => {
   return fillers;
 };
 
-// 合并真实 + 程序生成 = 1248 个粒子
+
 export const HERITAGE_ITEMS: HeritageItem[] = [
   ...FEATURED_HERITAGE_ITEMS,
   ...generateProceduralItems(1200 - FEATURED_HERITAGE_ITEMS.length)
 ];
 
-// 诗歌数据库（你原来的保持不动）
+
 export const POETRY_DATABASE: any = {
   'China': [
     { line: '大江东去，浪淘尽，千古风流人物。', translation: 'The Great River flows east, washing away the gallant heroes of antiquity.', author: 'Su Shi', year: '1082 AD' },
@@ -575,5 +575,5 @@ export const POETRY_DATABASE: any = {
   'default': [
     { line: 'History is a philosophy teaching by examples.', translation: '历史是以榜样进行教导的哲学。', author: 'Thucydides', year: '400 BC' }
   ]
-  // 你原来的其他国家诗歌全部保留
+  
 };
