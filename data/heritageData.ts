@@ -1,8 +1,8 @@
-// data/heritageData.ts —— 扩展数据库（55+ 真实 UNESCO/国家遗产，2025 版）
+// data/heritageData.ts 
 import { HeritageItem } from '../types';
 
 export const heritageItems: HeritageItem[] = [
-  // UNESCO World Heritage Sites (25 项，经典)
+  // UNESCO World Heritage Sites 
   {
     id: 1,
     name: '故宫',
