@@ -1,8 +1,7 @@
 # Why Does the Xiang River Flow to North?  
 An Interactive Visualization of World Cultural Heritage
 
-**Live Demo**: https://why-xiang-river-go-north2.vercel.app
-
+**Live Demo**: https://why-xiang-river-go-north2-git-main-xuans-projects-fd9a3c06.vercel.app/
 ## Project Overview
 This project is an interactive web application that visualizes over 1,200 UNESCO World Heritage sites as a flowing golden particle river, inspired by the poetic question "Why Does the Xiang River Flow North?".  
 
