@@ -24,7 +24,7 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 
-  // 新增：智能图片加载器（永不白屏！）
+  // 
   const [currentImage, setCurrentImage] = useState<string>('');
 
   // Refs
@@ -45,7 +45,7 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
     });
   }, [item]);
 
-  // 智能图片加载器（主图挂了自动换备用）
+  // 
   useEffect(() => {
     const urls = [
       item.imageUrl,
@@ -170,11 +170,11 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
   ).slice(0, 3);
 
   return (
-    // 关键修复：改成半透明 + 最高层级 + 完全防穿透
+    //
     <div
       className="fixed inset-0 z-[9999] bg-black/90 text-[#F5F0E6] overflow-y-auto sanctuary-scroll animate-fade-in-up pointer-events-auto"
       onScroll={handleScroll}
-      onClick={(e) => e.stopPropagation()} // 彻底阻止事件冒泡
+      onClick={(e) => e.stopPropagation()} //
     >
       {/* Sticky Top Header with Fixed Title */}
       <nav className="fixed top-0 left-0 w-full p-6 z-[9999] flex justify-between items-center bg-gradient-to-b from-black via-black/80 to-transparent pointer-events-none">
@@ -190,7 +190,7 @@ const HeritageCard: React.FC<HeritageCardProps> = ({ item, language, onClose, on
                 为什么湘江北去？
             </h1>
             <p className="text-[10px] text-[#D4AF37]/60 uppercase tracking-[0.3em] mt-1 hidden md:block">
-                Why Does the Xiang River Flow North?
+                Why Does the Xiang River Flows to North?
             </p>
          </div>
       </nav>
