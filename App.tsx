@@ -1,10 +1,10 @@
-// src/App.tsx —— 极简纯粹版 + 点击计数器进入「全球泪水档案馆」（已实测完美）
+// src/App.tsx 
 import React, { useState, useEffect } from 'react';
 import { HERITAGE_ITEMS, UI_TEXT } from './constants';
 import { HeritageItem, Language } from './types';
 import RiverVisualizer from './components/RiverVisualizer';
 import HeritageCard from './components/HeritageCard';
-import TearsArchive from './pages/TearsArchive'; // ← 新增：档案馆页面
+import TearsArchive from './pages/TearsArchive'; 
 
 const App: React.FC = () => {
   const [language, setLanguage] = useState<Language>('en');
@@ -14,16 +14,16 @@ const App: React.FC = () => {
 
   const isDetailOpen = !!selectedItem;
 
-  // 泪水系统
+  
   const [tearCount, setTearCount] = useState(0);
   const [showRipple, setShowRipple] = useState<{ x: number; y: number } | null>(null);
   const [flowingTears, setFlowingTears] = useState<{ id: number; x: number; y: number }[]>([]);
   const [furthestCountry, setFurthestCountry] = useState('未知');
 
-  // ← 新增：控制档案馆弹窗
+  
   const [showTearsArchive, setShowTearsArchive] = useState(false);
 
-  // 长按落泪（你原来的逻辑完整保留）
+  
   useEffect(() => {
     let longPressTimer: NodeJS.Timeout;
 
@@ -39,26 +39,26 @@ const App: React.FC = () => {
           y = (e as MouseEvent).clientY;
         }
 
-        // 水滴音效
+        
         const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-small-water-splash-1206.mp3');
         audio.volume = 0.3;
         audio.play().catch(() => {});
 
-        // 涟漪（只出现一次）
+        
         setShowRipple({ x, y });
         setTimeout(() => setShowRipple(null), 1200);
 
-        // 计数 +1
+        
         setTearCount(c => c + 1);
 
-        // 生成逆流泪水
+        
         const id = Date.now();
         setFlowingTears(prev => [...prev, { id, x, y }]);
         setTimeout(() => {
           setFlowingTears(prev => prev.filter(t => t.id !== id));
         }, 8000);
 
-        // 获取国家
+        
         fetch('https://ipapi.co/json/')
           .then(res => res.json())
           .then(data => setFurthestCountry(data.country_name || '神秘之地'))
