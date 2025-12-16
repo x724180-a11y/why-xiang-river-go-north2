@@ -1,8 +1,8 @@
 interface Props {
-  srcs: string[]; // 图片 URL 数组，优先级从左到右
+  srcs: string[];
   alt: string;
   className?: string;
-  fallbackPlaceholder?: string; // 失败时的占位文本
+  fallbackPlaceholder?: string;
 }
 
 const ImageWithFallback: React.FC<Props> = ({ srcs, alt, className = '', fallbackPlaceholder = '图片加载失败' }) => {
@@ -18,10 +18,10 @@ const ImageWithFallback: React.FC<Props> = ({ srcs, alt, className = '', fallbac
     };
     img.onerror = () => {
       setError(true);
-      // 切换下一个 URL
+      
       const nextSrc = srcs.find(s => s !== imgSrc);
       if (nextSrc) setImgSrc(nextSrc);
-      else setImgSrc(''); // 所有失败，用占位
+      else setImgSrc(''); 
     };
     img.src = imgSrc;
   }, [imgSrc, srcs]);
